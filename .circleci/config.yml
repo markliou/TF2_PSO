@@ -1,14 +1,14 @@
 version: 2.1
 
 orbs:
-  python: circleci/python@0.2.1
+  python: markliou/python3-tensorflow-gpu
 
 jobs:
   build-and-test:
-    executor: python/default
+    #executor: python/default
     steps:
       - run:
-          command: python3 ./circleci_play.py
+          command: python3 circleci_play.py
           name: Test
 
 workflows:
