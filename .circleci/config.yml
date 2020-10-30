@@ -10,4 +10,4 @@ workflows:
   version: 2
   call_circleci_test: # this is the name of our workflow
     jobs: # and here we list the jobs we are going to run.
-      - ciecle_ci_test
+      - circleci_test
