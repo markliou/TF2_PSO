@@ -1,7 +1,7 @@
 jobs: 
   circleci_test: 
     docker: # it uses the docker executor
-      - image: markliou/python3-tensorflow-gpu # specifically, a docker image with ruby 2.4.1
+      - image: circleci/ruby:2.4.1 # specifically, a docker image with ruby 2.4.1
     steps:
       - checkout # this pulls code down from GitHub
       - run: echo "A first hello" # This prints "A first hello" to stdout.
