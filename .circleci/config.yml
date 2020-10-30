@@ -1,5 +1,5 @@
 jobs: 
-  ciecle_ci_test: 
+  circleci_test: 
     docker: # it uses the docker executor
       - image: markliou/python3-tensorflow-gpu # specifically, a docker image with ruby 2.4.1
     steps:
@@ -8,6 +8,6 @@ jobs:
       - run: sleep 25 # a command telling the job to "sleep" for 25 seconds.
 workflows:
   version: 2
-  one_and_two: # this is the name of our workflow
+  call_circleci_test: # this is the name of our workflow
     jobs: # and here we list the jobs we are going to run.
-      - one
+      - ciecle_ci_test
