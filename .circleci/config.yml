@@ -1,13 +1,14 @@
-version: 2.1
+version: 2
 
 # orbs:
 #   python: circleci/python@0.2.1
 
 jobs:
   first_test_work_of_circleci:
-    - image: markliou/python3-tensorflow-gpu
+    docker:
+        - image: markliou/python3-tensorflow-gpu
     steps:
-      -checkout
+      - checkout
       - run:
           command: python3 circleci_play.py
           name: circleci_test
