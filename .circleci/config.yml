@@ -8,7 +8,7 @@ jobs:
     executor: python/default
     steps:
       - run:
-          command: python3 circleci_play.py
+          command: python3 ./circleci_play.py
           name: Test
 
 workflows:
