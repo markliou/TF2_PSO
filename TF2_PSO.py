@@ -24,6 +24,17 @@ class PSO():
         return flated_weights
     pass 
 
+    def _recoverFlattenWeightsTFKeras(self, model, flated_weights):
+        access_index = 0
+        for model_tesnsor in model.trainable_weights:
+            element_shape = model_tesnsor.shape.as_list()
+            element_number = np.ones(element_shape).sum().astype('int')
+            model_tesnsor.assign(tf.reshape(flated_weights[access_index:access_index+element_number], element_shape))
+            access_index += element_number
+        pass
+        return model
+    pass 
+
     def minimize(self):
         if self.iteration_no:
             self.optimizationProcess(dataset_iter)
