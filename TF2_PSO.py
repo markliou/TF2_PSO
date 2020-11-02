@@ -6,7 +6,7 @@ class PSO():
     def __init__(self, 
                  TF2_model, 
                  population_size=50, 
-                 iteration_no=5000):
+                 iteration_no=None):
         self.nnmodel = TF2_model
         self.population_size = population_size
         self.iteration_no = iteration_no
@@ -25,9 +25,18 @@ class PSO():
     pass 
 
     def minimize(self):
+        if self.iteration_no:
+            optimizationProcess()
+        else:
+            optimizationProcess_OneStep()
         pass 
+    pass 
 
     def optimizationProcess(self):
+        
+        pass 
+
+    def optimizationProcess_OneStep(self):
         
         pass 
 pass 
