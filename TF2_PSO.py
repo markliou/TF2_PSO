@@ -26,17 +26,17 @@ class PSO():
 
     def minimize(self):
         if self.iteration_no:
-            optimizationProcess()
+            self.optimizationProcess(dataset_iter)
         else:
-            optimizationProcess_OneStep()
+            self.optimizationProcess_OneStep(dataset)
         pass 
     pass 
 
-    def optimizationProcess(self):
+    def optimizationProcess(self, dataset_iter):
         
         pass 
 
-    def optimizationProcess_OneStep(self):
+    def optimizationProcess_OneStep(self, dataset):
         
         pass 
 pass 
