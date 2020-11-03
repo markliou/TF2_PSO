@@ -1,16 +1,15 @@
 import numpy as np 
 import tensorflow as tf 
 import tensorflow_addons as tfa 
+import tensorflow_datasets as tfds
 
 class PSO():
     def __init__(self, 
                  TF2_model, 
                  fitness_function,
-                 population_size=50, 
-                 iteration_no=None):
+                 population_size=50):
         self.nnmodel = TF2_model
         self.population_size = population_size
-        self.iteration_no = iteration_no
         self.population = self._createPopulation()
         self.fitness_function = fitness_function
     pass 
@@ -37,29 +36,12 @@ class PSO():
         return model
     pass 
 
-    def minimize(self, dataset_iter=None, dataset=None):
-        if self.iteration_no:
-            assert(dataset_iter), 'Continuous Optimization need to provide dataset_iter'
-            self.optimizationProcess(dataset_iter)
-        else:
-            assert(dataset), 'Continuous Optimization need to provide dataset'
-            self.optimizationProcess_OneStep(dataset)
-        pass 
-    pass 
-
-    def optimizationProcess_OneStep(self, dataset):
+    def minimize(self):
         # get fitnesses of each individual
 
         # update pbest
         # update gbest
         # update population 
-    pass     
-    
-    def optimizationProcess(self, dataset_iter):
-        for step in range(dataset_iter):
-            dataset = next(dataset_iter)
-            optimizationProcess_OneStep(dataset_iter)
-        pass 
     pass 
 
 
@@ -75,14 +57,26 @@ def sample_cnn():
     fc1 = tf.keras.layers.Dense(128, activation=tf.nn.relu)(fc)
     fc2 = tf.keras.layers.Dense(128, activation=tf.nn.relu)(fc1)
     fc3 = tf.keras.layers.Dense(128, activation=tf.nn.relu)(fc2)
-    out = tf.keras.layers.Dense(1, activation=None)(fc3)
+    out = tf.keras.layers.Dense(10, activation=None)(fc3)
 
     return tf.keras.Model(inputs=Input, outputs=out)
 pass 
 
 
 def main():
+    mnist = tfds.load('MNIST')
+    mnist_tr, mnist_ts = mnist['train'], mnist['test']
+    mnist_tr_iter = iter(mnist_tr.batch(32).repeat())
+
     cnn = sample_cnn()
+    data_fetcher = mnist_tr_iter.next()
+  
+    def loss():
+        #print(cnn(data_fetcher['image']))
+        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = np.reshape(data_fetcher['label'], [-1, 1]), logits = cnn(data_fetcher['image'])))
+    pass   
+    
+    print(loss())
 pass 
 
 if __name__ == "__main__":
