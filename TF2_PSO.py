@@ -5,12 +5,14 @@ import tensorflow_addons as tfa
 class PSO():
     def __init__(self, 
                  TF2_model, 
+                 fitness_function,
                  population_size=50, 
                  iteration_no=None):
         self.nnmodel = TF2_model
         self.population_size = population_size
         self.iteration_no = iteration_no
         self.population = self._createPopulation()
+        self.fitness_function = fitness_function
     pass 
 
     def _createPopulation(self):
@@ -35,21 +37,32 @@ class PSO():
         return model
     pass 
 
-    def minimize(self):
+    def minimize(self, dataset_iter=None, dataset=None):
         if self.iteration_no:
+            assert(dataset_iter), 'Continuous Optimization need to provide dataset_iter'
             self.optimizationProcess(dataset_iter)
         else:
+            assert(dataset), 'Continuous Optimization need to provide dataset'
             self.optimizationProcess_OneStep(dataset)
         pass 
     pass 
 
-    def optimizationProcess(self, dataset_iter):
-        
-        pass 
-
     def optimizationProcess_OneStep(self, dataset):
-        
+        # get fitnesses of each individual
+
+        # update pbest
+        # update gbest
+        # update population 
+    pass     
+    
+    def optimizationProcess(self, dataset_iter):
+        for step in range(dataset_iter):
+            dataset = next(dataset_iter)
+            optimizationProcess_OneStep(dataset_iter)
         pass 
+    pass 
+
+
 pass 
 
 def sample_cnn():
