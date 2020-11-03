@@ -7,16 +7,23 @@ class PSO():
     def __init__(self, 
                  TF2_model, 
                  fitness_function,
-                 population_size=50):
+                 pbest_wma = .8
+                 population_size = 50):
         self.nnmodel = TF2_model
         self.population_size = population_size
         self.population = self._createPopulation()
         self.fitness_function = fitness_function
+        self.pbest_wma = pbest_wma
+        self.pbest = {'fitness':tf.zeros([population_size]), 'weights':tf.zeros(self.population['weights'].shape)}
     pass 
 
     def _createPopulation(self):
+        self.population = {}
+        # creating the weights
         weights = self._flattenWeightsTFKeras()
-        self.population = tf.stack([tf.random.uniform(weights.shape) for i in range(self.population_size)], axis=0)
+        self.population['weights'] = tf.stack([tf.random.uniform(weights.shape) for i in range(self.population_size)], axis=0)
+        # creating the nn body for parallel computing
+        # self.population['graphs'] = [tf.keras.models.clone_model(self.nnmodel) for i in range(self.population_size)]
         return self.population
     pass 
 
@@ -38,9 +45,26 @@ class PSO():
 
     def minimize(self):
         # get fitnesses of each individual
+        fitness_rec = []
+        for ind_index in range(self.population_size):
+            self._recoverFlattenWeightsTFKeras(self.nnmodel, self.population['weights'][ind_index])
+            fitness_rec.append(self.fitness_function())
+        pass 
+        fitness_rec = tf.concat(fitness_rec, axis=0)
+        # take change to jump out of the outlier
+        # 有可能當下抽樣計算出的loss異常的高。如果抽到這樣的outliner可能會把族群trap住。
+        # 所以pbest的紀錄用moving average稍微處理
+        self.pbest['fitness'] = fitness_rec * (1 - self.pbest_wma) + self.pbest['fitness'] * self.pbest_wma
+        
+        # update pbest memory
+        rec_cmp = tf.cast(tf.math.less(self.pbest['fitness'], fitness_rec), dtype=tf.float32)
+        self.pbest['fitness'] = self.pbest['fitness'] * rec_cmp + fitness_rec * (-1 * (rec_cmp - 1)) # update the pbest fitness
+        rec_cmp = tf.reshape(rec_cmp, [-1, 1])
+        self.pbest['weights'] = self.pbest['weights'] * rec_cmp + self.population['weights'] * (-1 * (rec_cmp - 1)) # update the pbest weights
+        
+        # get gbest
+        
 
-        # update pbest
-        # update gbest
         # update population 
     pass 
 
@@ -71,12 +95,22 @@ def main():
     cnn = sample_cnn()
     data_fetcher = mnist_tr_iter.next()
   
+    ###################
     def loss():
         #print(cnn(data_fetcher['image']))
         return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = np.reshape(data_fetcher['label'], [-1, 1]), logits = cnn(data_fetcher['image'])))
     pass   
-    
+    ###################
+
     print(loss())
+
+
+    fitness_rec = []
+    for ind_index in range(50):
+        fitness_rec.append(loss())
+    pass 
+    print(tf.concat(fitness_rec, axis=0))
+
 pass 
 
 if __name__ == "__main__":

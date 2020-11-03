@@ -15,4 +15,9 @@ def assignWeights(nn, wights):
 nn = sample_nn()
 print(nn(np.random.random([2,3])))
 
+flated_weights = tf.Variable(tf.concat([tf.reshape(weights, [-1]) for weights in nn], axis=-1))
+
+
+pop['weights'] = 
+
 print(nn.trainable_weights)
