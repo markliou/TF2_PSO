@@ -7,21 +7,29 @@ class PSO():
     def __init__(self, 
                  TF2_model, 
                  fitness_function,
-                 pbest_wma = .8
+                 pbest_wma = .8,
+                 update_w = .8,
+                 update_c1 = 2,
+                 update_c2 = 2,
                  population_size = 50):
         self.nnmodel = TF2_model
         self.population_size = population_size
         self.population = self._createPopulation()
         self.fitness_function = fitness_function
         self.pbest_wma = pbest_wma
-        self.pbest = {'fitness':tf.zeros([population_size]), 'weights':tf.zeros(self.population['weights'].shape)}
+        self.update_w = update_w
+        self.update_c1 = update_c1
+        self.update_c2 = update_c2
+        self.pbest = {'fitness':tf.zeros([population_size]), 
+                      'weights':tf.zeros(self.population['weights'].shape)}
     pass 
 
     def _createPopulation(self):
         self.population = {}
         # creating the weights
         weights = self._flattenWeightsTFKeras()
-        self.population['weights'] = tf.stack([tf.random.uniform(weights.shape) for i in range(self.population_size)], axis=0)
+        self.population['weights'] = tf.stack([tf.random.normal(weights.shape, stddev=1.) for i in range(self.population_size)], axis=0)
+        self.population['velocity'] = tf.stack([tf.random.normal(weights.shape, stddev=.05) for i in range(self.population_size)], axis=0)
         # creating the nn body for parallel computing
         # self.population['graphs'] = [tf.keras.models.clone_model(self.nnmodel) for i in range(self.population_size)]
         return self.population
@@ -43,14 +51,19 @@ class PSO():
         return model
     pass 
 
-    def minimize(self):
-        # get fitnesses of each individual
+    def update_fitness(self):
         fitness_rec = []
         for ind_index in range(self.population_size):
             self._recoverFlattenWeightsTFKeras(self.nnmodel, self.population['weights'][ind_index])
             fitness_rec.append(self.fitness_function())
         pass 
-        fitness_rec = tf.concat(fitness_rec, axis=0)
+        return tf.concat(fitness_rec, axis=0)
+    pass 
+
+    def minimize(self):
+        # get fitnesses of each individual
+        fitness_rec = self.update_fitness()
+
         # take change to jump out of the outlier
         # 有可能當下抽樣計算出的loss異常的高。如果抽到這樣的outliner可能會把族群trap住。
         # 所以pbest的紀錄用moving average稍微處理
@@ -62,12 +75,30 @@ class PSO():
         rec_cmp = tf.reshape(rec_cmp, [-1, 1])
         self.pbest['weights'] = self.pbest['weights'] * rec_cmp + self.population['weights'] * (-1 * (rec_cmp - 1)) # update the pbest weights
         
-        # get gbest
-        
+        # create gbest tensors
+        gbest = tf.stack([self.pbest['weights'][tf.argmax(fitness_rec)] for i in range(self.population_size)], axis=1)
 
         # update population 
+        # vid+1 = w∙vid+c1∙rand()∙(pid-xid)+c2∙Rand()∙(pgd-xid) 
+        # xid+1 = xid+vid
+        self.population['velocity'] = self.update_w * self.population['velocity'] + \
+                                      self.update_c1 * tf.random.uniform(self.population['velocity'].shape) * (self.pbest['weights'] - self.self.population['weights']) + \
+                                      self.update_c2 * tf.random.uniform(self.population['velocity'].shape) * (gbest - self.self.population['weights'])
+
+        self.population['weights'] += self.population['velocity']
     pass 
 
+    def getTopModel(self):
+        # get fitnesses of each individual
+        fitness_rec = self.update_fitness()
+
+        # create gbest tensors
+        selected_ind = self.pbest['weights'][tf.argmax(fitness_rec)] 
+
+        # recover the wieghts to cnn
+        self._recoverFlattenWeightsTFKeras(self.nnmodel, selected_ind)
+        return self.nnmodel
+    pass
 
 pass 
 
@@ -104,12 +135,7 @@ def main():
 
     print(loss())
 
-
-    fitness_rec = []
-    for ind_index in range(50):
-        fitness_rec.append(loss())
-    pass 
-    print(tf.concat(fitness_rec, axis=0))
+    
 
 pass 
 
