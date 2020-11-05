@@ -6,7 +6,6 @@ import tensorflow_datasets as tfds
 class PSO():
     def __init__(self, 
                  TF2_model, 
-                 fitness_function,
                  pbest_wma = .8,
                  update_w = .8,
                  update_c1 = 2,
@@ -15,7 +14,6 @@ class PSO():
         self.nnmodel = TF2_model
         self.population_size = population_size
         self.population = self._createPopulation()
-        self.fitness_function = fitness_function
         self.pbest_wma = pbest_wma
         self.update_w = update_w
         self.update_c1 = update_c1
@@ -51,11 +49,11 @@ class PSO():
         return model
     pass 
 
-    def update_fitness(self):
+    def update_fitness(self, fitness_function):
         fitness_rec = []
         for ind_index in range(self.population_size):
             self._recoverFlattenWeightsTFKeras(self.nnmodel, self.population['weights'][ind_index])
-            fitness_rec.append(self.fitness_function())
+            fitness_rec.append(fitness_function())
         pass 
         return tf.concat(fitness_rec, axis=0)
     pass 
