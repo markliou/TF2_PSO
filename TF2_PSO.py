@@ -135,7 +135,8 @@ def main():
 
     print(loss())
 
-    
+    opt = PSO(cnn)
+
 
 pass 
 
