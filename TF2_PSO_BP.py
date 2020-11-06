@@ -19,7 +19,7 @@ class PSO():
         self.pbest = {'fitness':tf.zeros([population_size]), 
                       'weights':tf.zeros(self.population['weights'].shape)}
         self.force_evaluate = True
-        self.SGDOpt = tf.keras.optimizers.SGD(1E-3)
+        self.SGDOpt = tf.keras.optimizers.SGD(1E-4)
     pass 
 
     def _createPopulation(self):
@@ -111,7 +111,7 @@ class PSO():
 
     def getTopModel(self, fitness_function):
         # get fitnesses of each individual
-        fitness_rec = self.update_fitness(fitness_function)
+        fitness_rec = self.updateFitness(self.pbest, fitness_function, True)
 
         # create gbest tensors
         selected_ind = self.pbest['weights'][tf.argmax(fitness_rec)] 
