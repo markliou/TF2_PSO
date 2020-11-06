@@ -6,9 +6,9 @@ import tensorflow_datasets as tfds
 class PSO():
     def __init__(self, 
                  TF2_model, 
-                 update_w = .2,
-                 update_c1 = 2,
-                 update_c2 = 2,
+                 update_w = 1E-2,
+                 update_c1 = 1E-5,
+                 update_c2 = 1E-5,
                  population_size = 100):
         self.nnmodel = TF2_model
         self.population_size = population_size
@@ -25,8 +25,8 @@ class PSO():
         self.population = {}
         # creating the weights
         weights = self._flattenWeightsTFKeras()
-        self.population['weights'] = tf.stack([tf.random.normal(weights.shape, stddev=.5) for i in range(self.population_size)], axis=0)
-        self.population['velocity'] = tf.stack([tf.random.normal(weights.shape, stddev=.05) for i in range(self.population_size)], axis=0)
+        self.population['weights'] = tf.stack([tf.random.normal(weights.shape, stddev=.05) for i in range(self.population_size)], axis=0)
+        self.population['velocity'] = tf.stack([tf.random.normal(weights.shape, stddev=.01) for i in range(self.population_size)], axis=0)
         # creating the nn body for parallel computing
         # self.population['graphs'] = [tf.keras.models.clone_model(self.nnmodel) for i in range(self.population_size)]
         return self.population
@@ -81,24 +81,25 @@ class PSO():
         self.pbest['weights'] = tf.identity(self.pbest['weights'] * rec_cmp + self.population['weights'] * (-1 * rec_cmp + 1)) # update the pbest weights
         
         # create gbest tensors
-        gbest = tf.identity(self.population['weights'][tf.argmin(fitness_rec)])
+        # gbest = tf.identity(self.population['weights'][tf.argmin(fitness_rec)])
+        gbest = tf.identity(self.pbest['weights'][tf.argmin(self.pbest['fitness'])])
 
         # update population 
         # vid+1 = w∙vid+c1∙rand()∙(pid-xid)+c2∙Rand()∙(pgd-xid) 
         # xid+1 = xid+vid
         self.population['velocity'] = tf.identity(
                                       self.update_w * tf.identity(self.population['velocity']) +\
-                                      self.update_c1 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=.05, dtype=tf.float32)) * tf.identity(self.pbest['weights'] - self.population['weights']) +\
-                                      self.update_c2 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=.05, dtype=tf.float32)) * tf.identity(gbest - self.population['weights'])
+                                      self.update_c1 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=1, dtype=tf.float32)) * tf.identity(self.pbest['weights'] - self.population['weights']) +\
+                                      self.update_c2 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=1, dtype=tf.float32)) * tf.identity(gbest - self.population['weights'])
                                       )
         self.population['weights'] = tf.identity(self.population['velocity'] + self.population['weights'])
 
         return self.pbest['fitness'][tf.argmin(self.pbest['fitness'])]
     pass 
 
-    def getTopModel(self):
+    def getTopModel(self, fitness_function):
         # get fitnesses of each individual
-        fitness_rec = self.update_fitness()
+        fitness_rec = self.update_fitness(fitness_function)
 
         # create gbest tensors
         selected_ind = self.pbest['weights'][tf.argmax(fitness_rec)] 
@@ -129,31 +130,41 @@ pass
 def main():
     mnist = tfds.load('MNIST')
     mnist_tr, mnist_ts = mnist['train'], mnist['test']
-    mnist_tr_iter = iter(mnist_tr.batch(32).repeat())
+    mnist_tr_iter = iter(mnist_tr.batch(64).repeat())
 
     cnn = sample_cnn()
     data_fetcher = mnist_tr_iter.next()
   
     ###################
     def loss():
+        data_fetcher = mnist_tr_iter.next()
         #print(cnn(data_fetcher['image']))
-
-        return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = np.reshape(data_fetcher['label'], [-1, 1]), logits = cnn(data_fetcher['image'])))
+        # return tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels = tf.one_hot(np.reshape(data_fetcher['label'], [-1, 1]), 10, axis=-1), logits = cnn(data_fetcher['image'])))
+        return tf.reduce_mean(tf.keras.losses.categorical_crossentropy(tf.one_hot(data_fetcher['label'], 10, axis=-1), cnn(data_fetcher['image']), from_logits=True))
     pass   
     ###################
 
     print(loss())
 
     opt = PSO(cnn)
-    print(opt.minimize(loss))
     
-    # optimization
-    while(1):
-    # for steps in range(20):
-        # data_fetcher = mnist_tr_iter.next()
+    print("PSO optimization ...")
+    # PSO optimization
+    # while(1):
+    for steps in range(50):
+        data_fetcher = mnist_tr_iter.next()
         print(opt.minimize(loss))
     pass
+    opt.getTopModel(loss)
 
+    print("SGD optimization ...")
+    # opt = tfa.optimizers.NovoGrad(1E-4)
+    opt = tf.keras.optimizers.RMSprop(1E-4)
+    for steps in range(100):
+        # data_fetcher = mnist_tr_iter.next()
+        opt.minimize(loss, var_list = cnn.trainable_weights)
+        print(loss())
+    pass
 
 pass 
 
