@@ -6,10 +6,10 @@ import tensorflow_datasets as tfds
 class PSO():
     def __init__(self, 
                  TF2_model, 
-                 update_w = 1E-2,
-                 update_c1 = 1E-5,
-                 update_c2 = 1E-5,
-                 population_size = 100):
+                 update_w = 1E-5,
+                 update_c1 = 2,
+                 update_c2 = 1,
+                 population_size = 50):
         self.nnmodel = TF2_model
         self.population_size = population_size
         self.population = self._createPopulation()
@@ -25,7 +25,7 @@ class PSO():
         self.population = {}
         # creating the weights
         weights = self._flattenWeightsTFKeras()
-        self.population['weights'] = tf.stack([tf.random.normal(weights.shape, stddev=.05) for i in range(self.population_size)], axis=0)
+        self.population['weights'] = tf.stack([tf.random.normal(weights.shape, stddev=2) for i in range(self.population_size)], axis=0)
         self.population['velocity'] = tf.stack([tf.random.normal(weights.shape, stddev=.01) for i in range(self.population_size)], axis=0)
         # creating the nn body for parallel computing
         # self.population['graphs'] = [tf.keras.models.clone_model(self.nnmodel) for i in range(self.population_size)]
@@ -89,8 +89,8 @@ class PSO():
         # xid+1 = xid+vid
         self.population['velocity'] = tf.identity(
                                       self.update_w * tf.identity(self.population['velocity']) +\
-                                      self.update_c1 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=1, dtype=tf.float32)) * tf.identity(self.pbest['weights'] - self.population['weights']) +\
-                                      self.update_c2 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=1, dtype=tf.float32)) * tf.identity(gbest - self.population['weights'])
+                                      self.update_c1 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=.05, dtype=tf.float32)) * tf.identity(self.pbest['weights'] - self.population['weights']) +\
+                                      self.update_c2 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=.05, dtype=tf.float32)) * tf.identity(gbest - self.population['weights'])
                                       )
         self.population['weights'] = tf.identity(self.population['velocity'] + self.population['weights'])
 
@@ -115,12 +115,12 @@ def sample_cnn():
     Input = tf.keras.Input([28,28,1])
     nInput = Input/128 - 1
     conv1 = tf.keras.layers.Conv2D(32, [3, 3], strides=(2, 2), padding="SAME", activation=tf.nn.relu)(nInput) #[14,14]
-    conv2 = tf.keras.layers.Conv2D(32, [3, 3], strides=(2, 2), padding="SAME", activation=tf.nn.relu)(conv1) #[7,7]
-    conv3 = tf.keras.layers.Conv2D(32, [3, 3], strides=(2, 2), padding="SAME", activation=tf.nn.relu)(conv2) #[4,4]
+    conv2 = tf.keras.layers.Conv2D(64, [3, 3], strides=(2, 2), padding="SAME", activation=tf.nn.relu)(conv1) #[7,7]
+    conv3 = tf.keras.layers.Conv2D(128, [3, 3], strides=(2, 2), padding="SAME", activation=tf.nn.relu)(conv2) #[4,4]
     fc = tf.keras.layers.Flatten()(conv3)
-    fc1 = tf.keras.layers.Dense(128, activation=tf.nn.relu)(fc)
-    fc2 = tf.keras.layers.Dense(128, activation=tf.nn.relu)(fc1)
-    fc3 = tf.keras.layers.Dense(128, activation=tf.nn.relu)(fc2)
+    fc1 = tf.keras.layers.Dense(256, activation=tf.nn.relu)(fc)
+    fc2 = tf.keras.layers.Dense(512, activation=tf.nn.relu)(fc1)
+    fc3 = tf.keras.layers.Dense(1024, activation=tf.nn.relu)(fc2)
     out = tf.keras.layers.Dense(10, activation=None)(fc3)
 
     return tf.keras.Model(inputs=Input, outputs=out)
@@ -160,7 +160,7 @@ def main():
     print("SGD optimization ...")
     # opt = tfa.optimizers.NovoGrad(1E-4)
     opt = tf.keras.optimizers.RMSprop(1E-4)
-    for steps in range(100):
+    for steps in range(1000):
         # data_fetcher = mnist_tr_iter.next()
         opt.minimize(loss, var_list = cnn.trainable_weights)
         print(loss())
