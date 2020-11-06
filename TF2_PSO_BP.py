@@ -98,8 +98,8 @@ class PSO():
         # xid+1 = xid+vid
         self.population['velocity'] = tf.identity(
                                       self.update_w * tf.identity(self.population['velocity']) +\
-                                      self.update_c1 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=1E-3, dtype=tf.float32)) * tf.identity(self.pbest['weights'] - self.population['weights']) +\
-                                      self.update_c2 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=1E-3, dtype=tf.float32)) * tf.identity(gbest - self.population['weights'])
+                                      self.update_c1 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=1E-2, dtype=tf.float32)) * tf.identity(self.pbest['weights'] - self.population['weights']) +\
+                                      self.update_c2 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=1E-2, dtype=tf.float32)) * tf.identity(gbest - self.population['weights'])
                                     #   self.update_c1 * tf.math.abs(tf.random.normal([self.population_size, 1], stddev=1E-4, dtype=tf.float32)) * tf.identity(self.pbest['weights'] - self.population['weights']) +\
                                     #   self.update_c2 * tf.math.abs(tf.random.normal([self.population_size, 1], stddev=1E-4, dtype=tf.float32)) * tf.identity(gbest - self.population['weights'])
                                       
@@ -171,7 +171,7 @@ def main():
 
     print("SGD optimization ...")
     # opt = tfa.optimizers.NovoGrad(1E-4)
-    opt = tf.keras.optimizers.RMSprop(1E-4)
+    opt = tf.keras.optimizers.SGD(1E-4)
     for steps in range(1000):
         # data_fetcher = mnist_tr_iter.next()
         opt.minimize(loss, var_list = cnn.trainable_weights)
