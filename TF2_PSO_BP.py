@@ -113,7 +113,7 @@ class PSO():
                                       )
         self.population['weights'] = tf.identity(self.population['velocity'] + self.population['weights'])
 
-        self.update_w *= self.interial
+        self.update_w *= self.update_interial
         
         return self.pbest['fitness'][tf.argmin(self.pbest['fitness'])]
     pass 
