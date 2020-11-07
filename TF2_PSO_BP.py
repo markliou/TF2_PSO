@@ -9,7 +9,7 @@ class PSO():
                  update_w = .9,
                  update_interia = .99,
                  update_c1 = 1,
-                 update_c2 = 1,
+                 update_c2 = .5,
                  population_size = 100):
         self.nnmodel = TF2_model
         self.population_size = population_size
@@ -28,7 +28,7 @@ class PSO():
         self.population = {}
         # creating the weights
         weights = self._flattenWeightsTFKeras()
-        self.population['weights'] = tf.stack([tf.random.normal(weights.shape, stddev=.05) for i in range(self.population_size)], axis=0)
+        self.population['weights'] = tf.stack([tf.random.normal(weights.shape, stddev=1.) for i in range(self.population_size)], axis=0)
         self.population['velocity'] = tf.stack([tf.random.normal(weights.shape, stddev=.0) for i in range(self.population_size)], axis=0)
         # creating the nn body for parallel computing
         # self.population['graphs'] = [tf.keras.models.clone_model(self.nnmodel) for i in range(self.population_size)]

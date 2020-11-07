@@ -22,7 +22,7 @@ pass
 def main():
     mnist = tfds.load('MNIST')
     mnist_tr, mnist_ts = mnist['train'], mnist['test']
-    mnist_tr_iter = iter(mnist_tr.batch(128).repeat())
+    mnist_tr_iter = iter(mnist_tr.batch(32).repeat())
 
     cnn = sample_cnn()
     data_fetcher = mnist_tr_iter.next()
