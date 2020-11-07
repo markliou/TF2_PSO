@@ -7,7 +7,7 @@ class PSO():
     def __init__(self, 
                  TF2_model, 
                  update_w = .9,
-                 update_interia = .99
+                 update_interia = .99,
                  update_c1 = 1,
                  update_c2 = 1,
                  population_size = 100):
