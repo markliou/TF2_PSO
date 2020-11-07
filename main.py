@@ -22,7 +22,7 @@ pass
 def main():
     mnist = tfds.load('MNIST')
     mnist_tr, mnist_ts = mnist['train'], mnist['test']
-    mnist_tr_iter = iter(mnist_tr.batch(32).repeat())
+    mnist_tr_iter = iter(mnist_tr.batch(128).repeat())
 
     cnn = sample_cnn()
     data_fetcher = mnist_tr_iter.next()
@@ -36,7 +36,7 @@ def main():
     opt = PSO.PSO(cnn)
     
     print("PSO optimization ...")
-    for steps in range(1000):
+    for steps in range(10000000):
         data_fetcher = mnist_tr_iter.next()
         print(opt.minimize(loss))
     pass

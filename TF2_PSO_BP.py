@@ -6,14 +6,16 @@ import tensorflow_datasets as tfds
 class PSO():
     def __init__(self, 
                  TF2_model, 
-                 update_w = 1E-8,
+                 update_w = .9,
+                 update_interia = .99
                  update_c1 = 1,
                  update_c2 = 1,
-                 population_size = 50):
+                 population_size = 100):
         self.nnmodel = TF2_model
         self.population_size = population_size
         self.population = self._createPopulation()
         self.update_w = update_w
+        self.update_interia = update_interia
         self.update_c1 = update_c1
         self.update_c2 = update_c2
         self.pbest = {'fitness':tf.zeros([population_size]), 
@@ -26,7 +28,7 @@ class PSO():
         self.population = {}
         # creating the weights
         weights = self._flattenWeightsTFKeras()
-        self.population['weights'] = tf.stack([tf.random.normal(weights.shape, stddev=.1) for i in range(self.population_size)], axis=0)
+        self.population['weights'] = tf.stack([tf.random.normal(weights.shape, stddev=.05) for i in range(self.population_size)], axis=0)
         self.population['velocity'] = tf.stack([tf.random.normal(weights.shape, stddev=.0) for i in range(self.population_size)], axis=0)
         # creating the nn body for parallel computing
         # self.population['graphs'] = [tf.keras.models.clone_model(self.nnmodel) for i in range(self.population_size)]
@@ -111,6 +113,8 @@ class PSO():
                                       )
         self.population['weights'] = tf.identity(self.population['velocity'] + self.population['weights'])
 
+        self.update_w *= self.interial
+        
         return self.pbest['fitness'][tf.argmin(self.pbest['fitness'])]
     pass 
 
