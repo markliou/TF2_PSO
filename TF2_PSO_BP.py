@@ -8,9 +8,9 @@ class PSO():
                  TF2_model, 
                  update_w = .9,
                  update_interia = .99,
-                 update_c1 = 1,
-                 update_c2 = .5,
-                 population_size = 100):
+                 update_c1 = 2.,
+                 update_c2 = .75,
+                 population_size = 128):
         self.nnmodel = TF2_model
         self.population_size = population_size
         self.population = self._createPopulation()

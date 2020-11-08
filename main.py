@@ -36,7 +36,7 @@ def main():
     opt = PSO.PSO(cnn)
     
     print("PSO optimization ...")
-    for steps in range(10000000):
+    for steps in range(50):
         data_fetcher = mnist_tr_iter.next()
         print(opt.minimize(loss))
     pass
@@ -44,7 +44,7 @@ def main():
 
     print("SGD optimization ...")
     opt = tfa.optimizers.NovoGrad(1E-4)
-    for steps in range(1000):
+    for steps in range(5000):
        data_fetcher = mnist_tr_iter.next()
        opt.minimize(loss, var_list = cnn.trainable_weights)
        print(loss())
