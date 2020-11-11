@@ -6,11 +6,12 @@ import tensorflow_datasets as tfds
 class PSO():
     def __init__(self, 
                  TF2_model, 
-                 update_w = .9,
-                 update_interia = .99,
+                 update_w = .99,
+                 update_interia = .9,
                  update_c1 = 2.,
-                 update_c2 = .75,
-                 population_size = 128):
+                 update_c2 = 1.,
+                 population_size = 50):
+        
         self.nnmodel = TF2_model
         self.population_size = population_size
         self.population = self._createPopulation()
@@ -22,14 +23,17 @@ class PSO():
                       'weights':tf.zeros(self.population['weights'].shape)}
         self.force_evaluate = True
         self.SGDOpt = tf.keras.optimizers.SGD(1E-4)
+        #self.SGDOpt = tfa.optimizers.SGDW(1E-4, 1E-4)
+        #self.SGDOpt = tfa.optimizers.RectifiedAdam(1E-5, clipnorm=1.)
     pass 
 
     def _createPopulation(self):
         self.population = {}
         # creating the weights
         weights = self._flattenWeightsTFKeras()
-        self.population['weights'] = tf.stack([tf.random.normal(weights.shape, stddev=1.) for i in range(self.population_size)], axis=0)
-        self.population['velocity'] = tf.stack([tf.random.normal(weights.shape, stddev=.0) for i in range(self.population_size)], axis=0)
+        self.population['weights'] = tf.stack([tf.random.normal(weights.shape, stddev=.5) for i in range(self.population_size)], axis=0)
+        #self.population['weights'] = tf.stack([tf.random.uniform(weights.shape, minval=-1, maxval=1) for i in range(self.population_size)], axis=0)
+        self.population['velocity'] = tf.stack([tf.random.normal(weights.shape, stddev=1E-7) for i in range(self.population_size)], axis=0)
         # creating the nn body for parallel computing
         # self.population['graphs'] = [tf.keras.models.clone_model(self.nnmodel) for i in range(self.population_size)]
         return self.population
@@ -51,13 +55,13 @@ class PSO():
         return model
     pass 
 
-    def updateFitness(self, population, fitness_function, SGD = False):
+    def updateFitness(self, population, fitness_function, model_loss, SGD = False):
         fitness_rec = []
         SGD_Optimized_weights = []
         for ind_index in range(self.population_size):
             self._recoverFlattenWeightsTFKeras(self.nnmodel, population['weights'][ind_index])
             if SGD:
-                self.SGDOpt.minimize(fitness_function, self.nnmodel.trainable_weights)
+                self.SGDOpt.minimize(model_loss, self.nnmodel.trainable_weights)
                 SGD_Optimized_weights.append(tf.identity(self._flattenWeightsTFKeras()))
             pass
             fitness_rec.append(fitness_function())
@@ -68,9 +72,9 @@ class PSO():
         return tf.concat(fitness_rec, axis=0)
     pass 
 
-    def minimize(self, fitness_function):
+    def minimize(self, fitness_function, model_loss):
         # get fitnesses of each individual
-        fitness_rec = self.updateFitness(self.population, fitness_function)
+        fitness_rec = self.updateFitness(self.population, fitness_function, model_loss)
         # print(fitness_rec)
 
         # take change to jump out of the outlier
@@ -81,7 +85,7 @@ class PSO():
             self.pbest['fitness'] = tf.identity(fitness_rec)
             self.pbest['weights'] = tf.identity(self.population['weights'])
         else :
-            self.pbest['fitness'] = self.updateFitness(self.pbest, fitness_function, SGD = True)
+            self.pbest['fitness'] = self.updateFitness(self.pbest, fitness_function, model_loss, SGD = True)
         pass 
         
         # update pbest memory
@@ -106,6 +110,8 @@ class PSO():
                                       #self.update_c2 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=.5, dtype=tf.float32)) * tf.identity(gbest - self.population['weights'])
                                       self.update_c1 * tf.math.abs(tf.random.normal([self.population_size, 1], stddev=1., dtype=tf.float32)) * tf.identity(self.pbest['weights'] - self.population['weights']) +\
                                       self.update_c2 * tf.math.abs(tf.random.normal([self.population_size, 1], stddev=1., dtype=tf.float32)) * tf.identity(gbest - self.population['weights'])
+                                      #self.update_c1 * tf.math.abs(tf.random.uniform([self.population_size, 1], minval=0, maxval=1, dtype=tf.float32)) * tf.identity(self.pbest['weights'] - self.population['weights']) +\
+                                      #self.update_c2 * tf.math.abs(tf.random.uniform([self.population_size, 1], minval=0, maxval=1, dtype=tf.float32)) * tf.identity(gbest - self.population['weights'])
                                       #self.update_c1 * tf.reshape((fitness_rec / self.pbest['fitness']), [-1, 1]) * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=.5, dtype=tf.float32)) * tf.identity(self.pbest['weights'] - self.population['weights']) +\
                                       #self.update_c2 * tf.reshape((fitness_rec / gbest_fitness), [-1, 1]) * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=.5, dtype=tf.float32)) * tf.identity(gbest - self.population['weights'])
                                       #self.update_c1 * tf.reshape((fitness_rec / self.pbest['fitness']), [-1, 1]) * tf.math.abs(tf.random.normal([self.population_size, 1], stddev=.5, dtype=tf.float32)) * tf.identity(self.pbest['weights'] - self.population['weights']) +\
@@ -113,6 +119,7 @@ class PSO():
                                       )
         self.population['weights'] = tf.identity(self.population['velocity'] + self.population['weights'])
 
+        # update w 
         self.update_w *= self.update_interia
         
         return self.pbest['fitness'][tf.argmin(self.pbest['fitness'])]
