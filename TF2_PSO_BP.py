@@ -7,9 +7,10 @@ class PSO():
     def __init__(self, 
                  TF2_model, 
                  update_w = .99,
-                 update_interia = .9,
-                 update_c1 = 2.,
+                 update_interia = .99,
+                 update_c1 = 1.,
                  update_c2 = 1.,
+                 update_pbest_moment = .01,
                  population_size = 50):
         
         self.nnmodel = TF2_model
@@ -19,25 +20,35 @@ class PSO():
         self.update_interia = update_interia
         self.update_c1 = update_c1
         self.update_c2 = update_c2
+        self.update_pbest_moment = update_pbest_moment
         self.pbest = {'fitness':tf.zeros([population_size]), 
                       'weights':tf.zeros(self.population['weights'].shape)}
         self.force_evaluate = True
+        self.SGDOpts = self._createOptimizers()
         self.SGDOpt = tf.keras.optimizers.SGD(1E-4)
         #self.SGDOpt = tfa.optimizers.SGDW(1E-4, 1E-4)
-        #self.SGDOpt = tfa.optimizers.RectifiedAdam(1E-5, clipnorm=1.)
+        #self.SGDOpt = tfa.optimizers.RectifiedAdam(1E-4, clipnorm=1.)
     pass 
 
     def _createPopulation(self):
         self.population = {}
         # creating the weights
         weights = self._flattenWeightsTFKeras()
-        self.population['weights'] = tf.stack([tf.random.normal(weights.shape, stddev=.5) for i in range(self.population_size)], axis=0)
+        #self.population['weights'] = tf.stack([tf.random.normal(weights.shape, stddev=1) for i in range(self.population_size)], axis=0)
+        self.population['weights'] = tf.stack([weights * tf.random.normal(weights.shape, stddev=1.) for i in range(self.population_size)], axis=0)
         #self.population['weights'] = tf.stack([tf.random.uniform(weights.shape, minval=-1, maxval=1) for i in range(self.population_size)], axis=0)
-        self.population['velocity'] = tf.stack([tf.random.normal(weights.shape, stddev=1E-7) for i in range(self.population_size)], axis=0)
+        #self.population['velocity'] = tf.stack([tf.random.normal(weights.shape, stddev=0) for i in range(self.population_size)], axis=0)
+        self.population['velocity'] = tf.stack([tf.zeros_like(weights) for i in range(self.population_size)], axis=0)
         # creating the nn body for parallel computing
         # self.population['graphs'] = [tf.keras.models.clone_model(self.nnmodel) for i in range(self.population_size)]
         return self.population
     pass 
+
+    def _createOptimizers(self):
+        #opts = [tf.keras.optimizers.RMSprop(1E-4, clipnorm=1.) for i in range(self.population_size)]
+        opts = [tfa.optimizers.NovoGrad(1E-2, clipnorm=1.) for i in range(self.population_size)] 
+        return opts
+    pass
 
     def _flattenWeightsTFKeras(self):
         flated_weights = tf.Variable(tf.concat([tf.reshape(weights, [-1]) for weights in self.nnmodel.trainable_weights], axis=-1))
@@ -53,7 +64,7 @@ class PSO():
             access_index += element_number
         pass
         return model
-    pass 
+    pass
 
     def updateFitness(self, population, fitness_function, model_loss, SGD = False):
         fitness_rec = []
@@ -61,7 +72,8 @@ class PSO():
         for ind_index in range(self.population_size):
             self._recoverFlattenWeightsTFKeras(self.nnmodel, population['weights'][ind_index])
             if SGD:
-                self.SGDOpt.minimize(model_loss, self.nnmodel.trainable_weights)
+                #self.SGDOpt.minimize(model_loss, self.nnmodel.trainable_weights)
+                self.SGDOpts[ind_index].minimize(model_loss, self.nnmodel.trainable_weights)
                 SGD_Optimized_weights.append(tf.identity(self._flattenWeightsTFKeras()))
             pass
             fitness_rec.append(fitness_function())
@@ -74,12 +86,9 @@ class PSO():
 
     def minimize(self, fitness_function, model_loss):
         # get fitnesses of each individual
-        fitness_rec = self.updateFitness(self.population, fitness_function, model_loss)
+        fitness_rec = self.updateFitness(self.population, fitness_function, model_loss, SGD = True)
         # print(fitness_rec)
 
-        # take change to jump out of the outlier
-        # 有可能當下抽樣計算出的loss異常的高。如果抽到這樣的outliner可能會把族群trap住。
-        # 所以pbest的紀錄用moving average稍微處理
         if self.force_evaluate:
             self.force_evaluate = False
             self.pbest['fitness'] = tf.identity(fitness_rec)
@@ -95,10 +104,10 @@ class PSO():
         rec_cmp = tf.reshape(rec_cmp, [-1, 1])
         # print(rec_cmp)
         self.pbest['weights'] = tf.identity(self.pbest['weights'] * rec_cmp + self.population['weights'] * (-1 * rec_cmp + 1)) # update the pbest weights
-        
+
         # create gbest tensors
-        # gbest = tf.identity(self.population['weights'][tf.argmin(fitness_rec)])
-        gbest = tf.identity(self.pbest['weights'][tf.argmin(self.pbest['fitness'])])
+        gbest = tf.identity(self.population['weights'][tf.argmin(fitness_rec)])
+        #gbest = tf.identity(self.pbest['weights'][tf.argmin(self.pbest['fitness'])])
         gbest_fitness = tf.identity(self.pbest['fitness'][tf.argmin(self.pbest['fitness'])]) 
 
         # update population 

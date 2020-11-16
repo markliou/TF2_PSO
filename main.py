@@ -21,6 +21,7 @@ pass
 
 def main():
     mnist = tfds.load('MNIST')
+    #mnist = tfds.load('FashionMNIST')
     mnist_tr, mnist_ts = mnist['train'], mnist['test']
     mnist_tr_iter = iter(mnist_tr.batch(32).repeat())
     mnist_ts_iter = iter(mnist_tr.batch(10000))
@@ -35,26 +36,31 @@ def main():
     pass   
 
     def loss():
-        return 1 - tf.reduce_mean(tf.cast(tf.math.equal(data_fetcher['label'], tf.argmax(cnn.predict(data_fetcher['image']), axis=-1)), dtype=tf.float32))
+        return tf.identity(1 - (tf.reduce_mean(tf.cast(tf.math.equal(data_fetcher['label'], tf.argmax(cnn.predict(data_fetcher['image']), axis=-1)), dtype=tf.float32))))
     pass
     ###################
 
     opt = PSO.PSO(cnn)
     
     print("PSO optimization ...")
-    for steps in range(10000000):
+    for steps in range(10):
         data_fetcher = mnist_tr_iter.next()
+        loss_1 = opt.minimize(loss, loss_bp)
+        loss_2 = loss_bp()
         pred = tf.reduce_mean(tf.cast(tf.math.equal(mnist_ts_ds['label'], tf.argmax(cnn.predict(mnist_ts_ds['image']), axis=-1)), dtype=tf.float32))
-        print("step:{} loss:{} ts_aac:{}".format(steps, opt.minimize(loss, loss_bp), pred))
+        print("step:{} loss_1:{:.5f} loss_2:{:.5f} ts_aac:{:.2f}".format(steps, loss_1, loss_2, pred))
     pass
     opt.getTopModel(loss)
 
     print("SGD optimization ...")
     opt = tfa.optimizers.NovoGrad(1E-4)
     for steps in range(5000):
-       data_fetcher = mnist_tr_iter.next()
-       opt.minimize(loss, var_list = cnn.trainable_weights)
-       print(loss())
+        data_fetcher = mnist_tr_iter.next()
+        opt.minimize(loss_bp, var_list = cnn.trainable_weights)
+        loss_1 = loss()
+        loss_2 = loss_bp()
+        pred = tf.reduce_mean(tf.cast(tf.math.equal(mnist_ts_ds['label'], tf.argmax(cnn.predict(mnist_ts_ds['image']), axis=-1)), dtype=tf.float32))
+        print("step:{} loss_1:{:.5f} loss_2:{:.5f} ts_aac:{:.2f}".format(steps, loss_1, loss_2, pred))
     pass
 
 pass 
