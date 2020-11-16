@@ -8,9 +8,8 @@ class PSO():
                  TF2_model, 
                  update_w = .99,
                  update_interia = .99,
-                 update_c1 = 1.,
+                 update_c1 = .5,
                  update_c2 = 1.,
-                 update_pbest_moment = .01,
                  population_size = 50):
         
         self.nnmodel = TF2_model
@@ -20,7 +19,6 @@ class PSO():
         self.update_interia = update_interia
         self.update_c1 = update_c1
         self.update_c2 = update_c2
-        self.update_pbest_moment = update_pbest_moment
         self.pbest = {'fitness':tf.zeros([population_size]), 
                       'weights':tf.zeros(self.population['weights'].shape)}
         self.force_evaluate = True
@@ -28,6 +26,7 @@ class PSO():
         self.SGDOpt = tf.keras.optimizers.SGD(1E-4)
         #self.SGDOpt = tfa.optimizers.SGDW(1E-4, 1E-4)
         #self.SGDOpt = tfa.optimizers.RectifiedAdam(1E-4, clipnorm=1.)
+        self.query_models = [tf.keras.models.clone_model(TF2_model) for query_ind in range(self.population_size)] 
     pass 
 
     def _createPopulation(self):
@@ -45,8 +44,8 @@ class PSO():
     pass 
 
     def _createOptimizers(self):
-        #opts = [tf.keras.optimizers.RMSprop(1E-4, clipnorm=1.) for i in range(self.population_size)]
-        opts = [tfa.optimizers.NovoGrad(1E-2, clipnorm=1.) for i in range(self.population_size)] 
+        opts = [tf.keras.optimizers.RMSprop(1E-4, clipnorm=1.) for i in range(self.population_size)]
+        #opts = [tfa.optimizers.NovoGrad(1E-2, clipnorm=1.) for i in range(self.population_size)] 
         return opts
     pass
 
@@ -66,14 +65,28 @@ class PSO():
         return model
     pass
 
-    def updateFitness(self, population, fitness_function, model_loss, SGD = False):
+    def updateFitness(self, population, fitness_function, model_loss, SGD = False, batch_dataset = None):
         fitness_rec = []
         SGD_Optimized_weights = []
+        query_models = [self._recoverFlattenWeightsTFKeras(self.query_models[query_ind], population['weights'][query_ind]) for query_ind in range(self.population_size)]
         for ind_index in range(self.population_size):
             self._recoverFlattenWeightsTFKeras(self.nnmodel, population['weights'][ind_index])
-            if SGD:
-                #self.SGDOpt.minimize(model_loss, self.nnmodel.trainable_weights)
-                self.SGDOpts[ind_index].minimize(model_loss, self.nnmodel.trainable_weights)
+            if SGD: # if the SGD mode is on, the individual will have an SGD update
+                if batch_dataset: # if provide the dataset, using the self-supervised and crossentropy optimization
+                    def model_and_contrastive_loss():
+                        subject_pred = self.nnmodel(batch_dataset)
+                        loss = 0
+                        for query_ind in range(self.population_size):
+                            query_pred = query_models[query_ind](batch_dataset)
+                            loss += tf.keras.losses.KLDivergence()(subject_pred, query_pred) + tf.keras.losses.KLDivergence()(query_pred, subject_pred) 
+                        pass
+                        return model_loss() + loss/self.population_size 
+                    pass
+                    self.SGDOpts[ind_index].minimize(model_and_contrastive_loss, self.nnmodel.trainable_weights)
+                else: # if the dataset is not provided, using the crossentropy only
+                    #self.SGDOpt.minimize(model_loss, self.nnmodel.trainable_weights)
+                    self.SGDOpts[ind_index].minimize(model_loss, self.nnmodel.trainable_weights)
+                pass
                 SGD_Optimized_weights.append(tf.identity(self._flattenWeightsTFKeras()))
             pass
             fitness_rec.append(fitness_function())
@@ -84,17 +97,18 @@ class PSO():
         return tf.concat(fitness_rec, axis=0)
     pass 
 
-    def minimize(self, fitness_function, model_loss):
+    def minimize(self, fitness_function, model_loss, batch_data = None):
         # get fitnesses of each individual
-        fitness_rec = self.updateFitness(self.population, fitness_function, model_loss, SGD = True)
+        fitness_rec = self.updateFitness(self.population, fitness_function, model_loss, SGD=True, batch_dataset=batch_data)
         # print(fitness_rec)
+        
 
         if self.force_evaluate:
             self.force_evaluate = False
             self.pbest['fitness'] = tf.identity(fitness_rec)
             self.pbest['weights'] = tf.identity(self.population['weights'])
         else :
-            self.pbest['fitness'] = self.updateFitness(self.pbest, fitness_function, model_loss, SGD = True)
+            self.pbest['fitness'] = self.updateFitness(self.pbest, fitness_function, model_loss, SGD=True, batch_dataset=batch_data)
         pass 
         
         # update pbest memory

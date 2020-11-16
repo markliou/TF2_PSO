@@ -23,7 +23,7 @@ def main():
     mnist = tfds.load('MNIST')
     #mnist = tfds.load('FashionMNIST')
     mnist_tr, mnist_ts = mnist['train'], mnist['test']
-    mnist_tr_iter = iter(mnist_tr.batch(32).repeat())
+    mnist_tr_iter = iter(mnist_tr.batch(512).repeat())
     mnist_ts_iter = iter(mnist_tr.batch(10000))
 
     cnn = sample_cnn()
@@ -43,9 +43,9 @@ def main():
     opt = PSO.PSO(cnn)
     
     print("PSO optimization ...")
-    for steps in range(10):
+    for steps in range(10000):
         data_fetcher = mnist_tr_iter.next()
-        loss_1 = opt.minimize(loss, loss_bp)
+        loss_1 = opt.minimize(loss, loss_bp, data_fetcher)
         loss_2 = loss_bp()
         pred = tf.reduce_mean(tf.cast(tf.math.equal(mnist_ts_ds['label'], tf.argmax(cnn.predict(mnist_ts_ds['image']), axis=-1)), dtype=tf.float32))
         print("step:{} loss_1:{:.5f} loss_2:{:.5f} ts_aac:{:.2f}".format(steps, loss_1, loss_2, pred))
