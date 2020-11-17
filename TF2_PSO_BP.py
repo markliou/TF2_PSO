@@ -6,9 +6,9 @@ import tensorflow_datasets as tfds
 class PSO():
     def __init__(self, 
                  TF2_model, 
-                 update_w = .99,
+                 update_w = .0,
                  update_interia = .99,
-                 update_c1 = .5,
+                 update_c1 = 1.,
                  update_c2 = 1.,
                  population_size = 50):
         
@@ -22,8 +22,8 @@ class PSO():
         self.pbest = {'fitness':tf.zeros([population_size]), 
                       'weights':tf.zeros(self.population['weights'].shape)}
         self.force_evaluate = True
-        #self.SGDOpts = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4)
-        self.SGDOpts = self._createOptimizers(tfa.optimizers.NovoGrad, learning_rate=1E-3)
+        self.SGDOpts = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4, clipnorm=1.)
+        #self.SGDOpts = self._createOptimizers(tfa.optimizers.NovoGrad, learning_rate=1E-4, amsgrad=True, clipnorm=1., weight_decay=1E-4)
         self.SGDOpt = tf.keras.optimizers.SGD(1E-4)
         #self.SGDOpt = tfa.optimizers.SGDW(1E-4, 1E-4)
         #self.SGDOpt = tfa.optimizers.RectifiedAdam(1E-4, clipnorm=1.)
@@ -44,8 +44,8 @@ class PSO():
         return self.population
     pass 
 
-    def _createOptimizers(self, keras_opt, learning_rate, clipnorm = 1.):
-        opts = [keras_opt(learning_rate, clipnorm = clipnorm) for i in range(self.population_size)]
+    def _createOptimizers(self, keras_opt, learning_rate, **kwargs):
+        opts = [keras_opt(learning_rate, **kwargs) for i in range(self.population_size)]
         return opts
     pass
 
@@ -72,12 +72,16 @@ class PSO():
         for ind_index in range(self.population_size):
             self._recoverFlattenWeightsTFKeras(self.nnmodel, population['weights'][ind_index])
             if SGD: # if the SGD mode is on, the individual will have an SGD update
-                if batch_dataset: # if provide the dataset, using the self-supervised and crossentropy optimization
+                if batch_dataset != None: # if provide the dataset, using the self-supervised and crossentropy optimization
+                    KLD = tf.keras.losses.KLDivergence()
                     def model_and_contrastive_loss():
-                        subject_pred = self.nnmodel(batch_dataset)
+                        subject_pred = tf.nn.softmax(self.nnmodel(batch_dataset))
+                        #loss = tf.math.reduce_mean(
+                        #       tf.map_fn(fn=lambda q_model: (KLD(tf.nn.softmax(q_model(batch_dataset), tf.nn.softmax(subject_pred))) + KLD(tf.nn.softmax(subject_pred), tf.nn.softmax(q_model(batch_dataset)))), elems=query_models, parallel_iterations=10)
+                        #       )
                         loss = 0
                         for query_ind in range(self.population_size):
-                            query_pred = query_models[query_ind](batch_dataset)
+                            query_pred = tf.nn.softmax(query_models[query_ind](batch_dataset))
                             loss += tf.keras.losses.KLDivergence()(subject_pred, query_pred) + tf.keras.losses.KLDivergence()(query_pred, subject_pred) 
                         pass
                         return model_loss() + loss/self.population_size 
@@ -89,7 +93,7 @@ class PSO():
                 pass
                 SGD_Optimized_weights.append(tf.identity(self._flattenWeightsTFKeras()))
             pass
-            fitness_rec.append(fitness_function())
+            fitness_rec.append(fitness_function() + tf.identity(tf.norm(SGD_Optimized_weights[-1]) * 1E-3))
         pass
         if SGD:
             population['weights'] = tf.stack(SGD_Optimized_weights, axis=0)
