@@ -22,7 +22,8 @@ class PSO():
         self.pbest = {'fitness':tf.zeros([population_size]), 
                       'weights':tf.zeros(self.population['weights'].shape)}
         self.force_evaluate = True
-        self.SGDOpts = self._createOptimizers()
+        #self.SGDOpts = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4)
+        self.SGDOpts = self._createOptimizers(tfa.optimizers.NovoGrad, learning_rate=1E-3)
         self.SGDOpt = tf.keras.optimizers.SGD(1E-4)
         #self.SGDOpt = tfa.optimizers.SGDW(1E-4, 1E-4)
         #self.SGDOpt = tfa.optimizers.RectifiedAdam(1E-4, clipnorm=1.)
@@ -43,9 +44,8 @@ class PSO():
         return self.population
     pass 
 
-    def _createOptimizers(self):
-        opts = [tf.keras.optimizers.RMSprop(1E-4, clipnorm=1.) for i in range(self.population_size)]
-        #opts = [tfa.optimizers.NovoGrad(1E-2, clipnorm=1.) for i in range(self.population_size)] 
+    def _createOptimizers(self, keras_opt, learning_rate, clipnorm = 1.):
+        opts = [keras_opt(learning_rate, clipnorm = clipnorm) for i in range(self.population_size)]
         return opts
     pass
 
