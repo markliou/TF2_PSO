@@ -6,7 +6,7 @@ import tensorflow_datasets as tfds
 class PSO():
     def __init__(self, 
                  TF2_model, 
-                 update_w = .0,
+                 update_w = .99,
                  update_interia = .99,
                  update_c1 = 1.,
                  update_c2 = 1.,
@@ -68,28 +68,29 @@ class PSO():
     def updateFitness(self, population, fitness_function, model_loss, SGD = False, batch_dataset = None):
         fitness_rec = []
         SGD_Optimized_weights = []
+        KLD = tf.keras.losses.KLDivergence()
         query_models = [self._recoverFlattenWeightsTFKeras(self.query_models[query_ind], population['weights'][query_ind]) for query_ind in range(self.population_size)]
+        #query_models = tf.map_fn(lambda model_idx: self._recoverFlattenWeightsTFKeras(self.query_models[model_idx], population['weights'][model_idx]), elems=tf.range(self.population_size, dtype=tf.int32), parallel_iterations=10)
         for ind_index in range(self.population_size):
             self._recoverFlattenWeightsTFKeras(self.nnmodel, population['weights'][ind_index])
             if SGD: # if the SGD mode is on, the individual will have an SGD update
                 if batch_dataset != None: # if provide the dataset, using the self-supervised and crossentropy optimization
-                    KLD = tf.keras.losses.KLDivergence()
                     def model_and_contrastive_loss():
                         subject_pred = tf.nn.softmax(self.nnmodel(batch_dataset))
-                        #loss = tf.math.reduce_mean(
-                        #       tf.map_fn(fn=lambda q_model: (KLD(tf.nn.softmax(q_model(batch_dataset), tf.nn.softmax(subject_pred))) + KLD(tf.nn.softmax(subject_pred), tf.nn.softmax(q_model(batch_dataset)))), elems=query_models, parallel_iterations=10)
-                        #       )
-                        loss = 0
-                        for query_ind in range(self.population_size):
-                            query_pred = tf.nn.softmax(query_models[query_ind](batch_dataset))
-                            loss += tf.keras.losses.KLDivergence()(subject_pred, query_pred) + tf.keras.losses.KLDivergence()(query_pred, subject_pred) 
-                        pass
-                        return model_loss() + loss/self.population_size 
+                        loss = tf.math.reduce_mean(
+                               tf.map_fn(fn=lambda model_idx: KLD(tf.nn.softmax(query_models[model_idx](batch_dataset)), subject_pred) + KLD(subject_pred, tf.nn.softmax(query_models[model_idx](batch_dataset))), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
+                               )
+                        #loss = 0
+                        #for query_ind in range(self.population_size):
+                        #    query_pred = tf.nn.softmax(query_models[query_ind](batch_dataset))
+                        #    loss += tf.keras.losses.KLDivergence()(subject_pred, query_pred) + tf.keras.losses.KLDivergence()(query_pred, subject_pred) 
+                        #pass
+                        return model_loss() + loss 
                     pass
                     self.SGDOpts[ind_index].minimize(model_and_contrastive_loss, self.nnmodel.trainable_weights)
                 else: # if the dataset is not provided, using the crossentropy only
-                    #self.SGDOpt.minimize(model_loss, self.nnmodel.trainable_weights)
-                    self.SGDOpts[ind_index].minimize(model_loss, self.nnmodel.trainable_weights)
+                    #self.SGDOpt.minimize(model_loss, self.nnmodel.trainable_weights) # use single SGD optimizer. this will be infuluence by momentum
+                    self.SGDOpts[ind_index].minimize(model_loss, self.nnmodel.trainable_weights) # use the SGD array for adaptive momentum
                 pass
                 SGD_Optimized_weights.append(tf.identity(self._flattenWeightsTFKeras()))
             pass

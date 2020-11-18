@@ -30,7 +30,7 @@ def main():
     mnist = tfds.load('MNIST')
     #mnist = tfds.load('FashionMNIST')
     mnist_tr, mnist_ts = mnist['train'], mnist['test']
-    mnist_tr_iter = iter(mnist_tr.batch(32).repeat())
+    mnist_tr_iter = iter(mnist_tr.batch(256).repeat())
     mnist_ts_iter = iter(mnist_tr.batch(10000))
 
     cnn = sample_cnn()
