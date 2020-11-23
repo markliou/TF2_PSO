@@ -38,7 +38,7 @@ def main():
 
     place365 = tfds.load('Places365Small')
     place365_tr, place365_ts = place365['train'], place365['test']
-    place365_tr_iter = iter(place365_tr.batch(128).repeat())
+    place365_tr_iter = iter(place365_tr.batch(512).repeat())
     place365_ts_iter = iter(place365_tr.batch(1000))
 
     cnn = sample_cnn()
@@ -74,7 +74,7 @@ def main():
     #opt = tfa.optimizers.NovoGrad(1E-4)
     #opt = tf.keras.optimizers.RMSprop(1E-4, clipnorm=1.)
     opt = tfa.optimizers.Yogi(1E-4, clipnorm=1.)
-    for steps in range(200000):
+    for steps in range(200000000):
         #data_fetcher = mnist_tr_iter.next()
         data_fetcher = place365_tr_iter.next()
         opt.minimize(loss_bp, var_list = cnn.trainable_weights)
