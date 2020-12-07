@@ -25,7 +25,8 @@ class PSO():
                       'weights':tf.zeros(self.population['weights'].shape)}
         self.force_evaluate = True
         #self.SGDOpts = self._createOptimizers(tfa.optimizers.SGDW, learning_rate=1E-4, clipnorm=1.)
-        self.SGDOpts = self._createOptimizers(tfa.optimizers.Yogi, learning_rate=1E-4, clipnorm=1.)
+        #self.SGDOpts = self._createOptimizers(tfa.optimizers.Yogi, learning_rate=1E-4, clipnorm=1.)
+        self.SGDOpts = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4, clipnorm=1.)
         #self.SGDOpts = self._createOptimizers(tf.keras.optimizers.Adamax, learning_rate=1E-4, clipnorm=1.)
         self.SGDopts_g = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4, clipnorm=1.)
         #self.SGDopts_g = self._createOptimizers(tfa.optimizers.Yogi, learning_rate=1E-4, clipnorm=1.)
@@ -88,7 +89,7 @@ class PSO():
                 if batch_dataset != None: # if provide the dataset, using the self-supervised and crossentropy optimization
                     def model_and_contrastive_loss():
                         subject_pred = tf.nn.softmax(self.nnmodel(batch_dataset))
-                        temperature = 10
+                        temperature = 1.5
                         loss = tf.math.reduce_mean(
                                tf.map_fn(fn=lambda model_idx: KLD(tf.nn.softmax(query_models[model_idx](batch_dataset)) / temperature, (tf.nn.softmax(query_models[model_idx](batch_dataset)) + subject_pred) / temperature) + KLD(subject_pred / temperature, (subject_pred + tf.nn.softmax(query_models[model_idx](batch_dataset))) / temperature), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
                                )

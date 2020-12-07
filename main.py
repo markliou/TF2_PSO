@@ -59,16 +59,18 @@ def main():
     pass
     ###################
 
-    #opt = PSO.PSO(cnn)
-    #print("PSO optimization ...")
-    #for steps in range(10000):
-    #    data_fetcher = mnist_tr_iter.next()
-    #    loss_1 = opt.minimize(loss, loss_bp, data_fetcher['image'])
-    #    loss_2 = loss_bp()
-    #    pred = tf.reduce_mean(tf.cast(tf.math.equal(mnist_ts_ds['label'], tf.argmax(cnn.predict(mnist_ts_ds['image']), axis=-1)), dtype=tf.float32))
-    #    print("step:{} loss_1:{:.5f} loss_2:{:.5f} ts_aac:{:.2f}".format(steps, loss_1, loss_2, pred))
-    #pass
-    #opt.getTopModel(loss)
+    opt = PSO.PSO(cnn)
+    print("PSO optimization ...")
+    for steps in range(10000):
+        data_fetcher = mnist_tr_iter.next()
+        loss_1 = opt.minimize(loss_bp, loss_bp, data_fetcher['image'])
+        loss_2 = loss_bp()
+        #pred = tf.reduce_mean(tf.cast(tf.math.equal(mnist_ts_ds['label'], tf.argmax(cnn.predict(mnist_ts_ds['image']), axis=-1)), dtype=tf.float32))
+        pred = tf.reduce_mean(tf.cast(tf.math.equal(mnist_ts_ds['label'], tf.argmax(cnn.predict(tf.image.resize(mnist_ts_ds['image'], [32, 32])), axis=-1)), dtype=tf.float32))
+        print("step:{} loss_1:{:.5f} loss_2:{:.5f} ts_aac:{:.2f}".format(steps, loss_1, loss_2, pred))
+    pass
+    opt.getTopModel(loss)
+    exit()
 
     print("SGD optimization ...")
     #opt = tfa.optimizers.NovoGrad(1E-4)
