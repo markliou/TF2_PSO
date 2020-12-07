@@ -61,7 +61,7 @@ def main():
 
     opt = PSO.PSO(cnn)
     print("PSO optimization ...")
-    for steps in range(10000):
+    for steps in range(1000000):
         data_fetcher = mnist_tr_iter.next()
         loss_1 = opt.minimize(loss_bp, loss_bp, data_fetcher['image'])
         loss_2 = loss_bp()
