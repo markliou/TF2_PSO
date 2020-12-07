@@ -26,9 +26,11 @@ class PSO():
         self.force_evaluate = True
         #self.SGDOpts = self._createOptimizers(tfa.optimizers.SGDW, learning_rate=1E-4, clipnorm=1.)
         #self.SGDOpts = self._createOptimizers(tfa.optimizers.Yogi, learning_rate=1E-4, clipnorm=1.)
-        self.SGDOpts = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4, clipnorm=1.)
+        #self.SGDOpts = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4, clipnorm=1.)
+        self.SGDOpts = self._createOptimizers(tfa.optimizers.RectifiedAdam, learning_rate=1E-4, clipnorm=1.)
         #self.SGDOpts = self._createOptimizers(tf.keras.optimizers.Adamax, learning_rate=1E-4, clipnorm=1.)
-        self.SGDopts_g = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4, clipnorm=1.)
+        #self.SGDopts_g = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4, clipnorm=1.)
+        self.SGDopts_g = self._createOptimizers(tfa.optimizers.RectifiedAdam, learning_rate=1E-4, clipnorm=1.)
         #self.SGDopts_g = self._createOptimizers(tfa.optimizers.Yogi, learning_rate=1E-4, clipnorm=1.)
         #self.SGDOpts = self._createOptimizers(tfa.optimizers.NovoGrad, learning_rate=1E-4, amsgrad=True, clipnorm=1., weight_decay=1E-4)
         self.SGDOpt = tf.keras.optimizers.SGD(1E-4)
