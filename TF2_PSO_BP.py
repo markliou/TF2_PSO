@@ -87,12 +87,14 @@ class PSO():
             self._recoverFlattenWeightsTFKeras(self.nnmodel, population['weights'][ind_index])
             if SGD: # if the SGD mode is on, the individual will have an SGD update
                 if batch_dataset != None: # if provide the dataset, using the self-supervised and crossentropy optimization
+                    subject_pred = tf.nn.softmax(self.nnmodel(batch_dataset))
                     def model_and_contrastive_loss():
                         subject_pred = tf.nn.softmax(self.nnmodel(batch_dataset))
                         temperature = 1.5
                         loss = tf.math.reduce_mean(
-                               tf.map_fn(fn=lambda model_idx: KLD(tf.nn.softmax(query_models[model_idx](batch_dataset)) / temperature, (tf.nn.softmax(query_models[model_idx](batch_dataset)) + subject_pred) / temperature) + KLD(subject_pred / temperature, (subject_pred + tf.nn.softmax(query_models[model_idx](batch_dataset))) / temperature), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
+                               tf.map_fn(fn=lambda model_idx: KLD(tf.stop_gradient(tf.nn.softmax(query_models[model_idx](batch_dataset)) / temperature), subject_pred / temperature ), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
                                )
+                        
                         #loss = 0
                         #for query_ind in range(self.population_size):
                         #    query_pred = tf.nn.softmax(query_models[query_ind](batch_dataset))

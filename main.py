@@ -62,8 +62,9 @@ def main():
     opt = PSO.PSO(cnn)
     print("PSO optimization ...")
     for steps in range(1000000):
-        data_fetcher = mnist_tr_iter.next()
-        loss_1 = opt.minimize(loss_bp, loss_bp, data_fetcher['image'])
+        #data_fetcher = mnist_tr_iter.next()
+        data_fetcher = place365_tr_iter.next()
+        loss_1 = opt.minimize(loss, loss_bp, tf.image.resize(data_fetcher['image'], [32, 32]))
         loss_2 = loss_bp()
         #pred = tf.reduce_mean(tf.cast(tf.math.equal(mnist_ts_ds['label'], tf.argmax(cnn.predict(mnist_ts_ds['image']), axis=-1)), dtype=tf.float32))
         pred = tf.reduce_mean(tf.cast(tf.math.equal(mnist_ts_ds['label'], tf.argmax(cnn.predict(tf.image.resize(mnist_ts_ds['image'], [32, 32])), axis=-1)), dtype=tf.float32))
