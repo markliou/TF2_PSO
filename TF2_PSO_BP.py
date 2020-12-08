@@ -8,8 +8,9 @@ class PSO():
                  TF2_model, 
                  update_w = .99,
                  update_interia = .9,
-                 paricle_v_limit = .1,
+                 partical_v_limit = .1,
                  update_c1 = 0.,
+                 update_c1_lr = 1E-3,
                  update_c2 = 1.,
                  population_size = 20):
         
@@ -20,17 +21,18 @@ class PSO():
         self.update_interia = update_interia
         self.update_c1 = update_c1
         self.update_c2 = update_c2
-        self.paricle_v_limit = paricle_v_limit
+        self.update_c1_lr = update_c1_lr
+        self.partical_v_limit = partical_v_limit
         self.pbest = {'fitness':tf.zeros([population_size]), 
                       'weights':tf.zeros(self.population['weights'].shape)}
         self.force_evaluate = True
         #self.SGDOpts = self._createOptimizers(tfa.optimizers.SGDW, learning_rate=1E-4, clipnorm=1.)
         #self.SGDOpts = self._createOptimizers(tfa.optimizers.Yogi, learning_rate=1E-4, clipnorm=1.)
-        #self.SGDOpts = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4, clipnorm=1.)
-        self.SGDOpts = self._createOptimizers(tfa.optimizers.RectifiedAdam, learning_rate=1E-4, clipnorm=1.)
+        self.SGDOpts = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4, clipnorm=1.)
+        #self.SGDOpts = self._createOptimizers(tfa.optimizers.RectifiedAdam, learning_rate=1E-4)
         #self.SGDOpts = self._createOptimizers(tf.keras.optimizers.Adamax, learning_rate=1E-4, clipnorm=1.)
-        #self.SGDopts_g = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4, clipnorm=1.)
-        self.SGDopts_g = self._createOptimizers(tfa.optimizers.RectifiedAdam, learning_rate=1E-4, clipnorm=1.)
+        self.SGDopts_g = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4, clipnorm=1.)
+        #self.SGDopts_g = self._createOptimizers(tfa.optimizers.RectifiedAdam, learning_rate=1E-4)
         #self.SGDopts_g = self._createOptimizers(tfa.optimizers.Yogi, learning_rate=1E-4, clipnorm=1.)
         #self.SGDOpts = self._createOptimizers(tfa.optimizers.NovoGrad, learning_rate=1E-4, amsgrad=True, clipnorm=1., weight_decay=1E-4)
         self.SGDOpt = tf.keras.optimizers.SGD(1E-4)
@@ -91,10 +93,12 @@ class PSO():
                 if batch_dataset != None: # if provide the dataset, using the self-supervised and crossentropy optimization
                     subject_pred = tf.nn.softmax(self.nnmodel(batch_dataset))
                     def model_and_contrastive_loss():
-                        subject_pred = tf.nn.softmax(self.nnmodel(batch_dataset))
-                        temperature = 1.5
+                        temperature = 5.
+                        subject_pred = tf.nn.softmax(self.nnmodel(batch_dataset) / temperature)
+                        
                         loss = tf.math.reduce_mean(
-                               tf.map_fn(fn=lambda model_idx: KLD(tf.stop_gradient(tf.nn.softmax(query_models[model_idx](batch_dataset)) / temperature), subject_pred / temperature ), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
+                               tf.map_fn(fn=lambda model_idx: KLD(subject_pred, tf.nn.softmax(query_models[model_idx](batch_dataset) / temperature)), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
+                               #tf.map_fn(fn=lambda model_idx: tf.pow(self.nnmodel(batch_dataset) - query_models[model_idx](batch_dataset), 2), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
                                )
                         
                         #loss = 0
@@ -111,7 +115,7 @@ class PSO():
                 pass
                 SGD_Optimized_weights.append(tf.identity(self._flattenWeightsTFKeras()))
             pass
-            fitness_rec.append(fitness_function() + tf.norm(SGD_Optimized_weights[-1]) * 1E-3)
+            fitness_rec.append(fitness_function()) # + tf.norm(SGD_Optimized_weights[-1]) * 1E-3)
         pass
         if SGD:
             population['weights'] = tf.stack(SGD_Optimized_weights, axis=0)
@@ -136,10 +140,12 @@ class PSO():
         # update pbest memory
         rec_cmp = tf.cast(tf.math.less(self.pbest['fitness'], fitness_rec), dtype=tf.float32)
         #rec_cmp = tf.ones_like(rec_cmp)
-        self.pbest['fitness'] = tf.identity(self.pbest['fitness'] * rec_cmp + fitness_rec * (-1 * rec_cmp + 1)) # update the pbest fitness
+        #self.pbest['fitness'] = tf.identity(self.pbest['fitness'] * rec_cmp + fitness_rec * (-1 * rec_cmp + 1)) # update the pbest fitness
+        #self.pbest['fitness'] = tf.identity(self.pbest['fitness'] * rec_cmp * (1 - self.update_c1_lr) + fitness_rec * (-1 * rec_cmp + 1) * self.update_c1_lr) # update the pbest fitness with momentum strategy
         rec_cmp = tf.reshape(rec_cmp, [-1, 1])
         # print(rec_cmp)
-        self.pbest['weights'] = tf.identity(self.pbest['weights'] * rec_cmp + self.population['weights'] * (-1 * rec_cmp + 1)) # update the pbest weights
+        #self.pbest['weights'] = tf.identity(self.pbest['weights'] * rec_cmp + self.population['weights'] * (-1 * rec_cmp + 1)) # update the pbest weights
+        self.pbest['weights'] = tf.identity(self.pbest['weights'] * rec_cmp) + tf.identity(self.pbest['weights'] * (-1 * rec_cmp + 1) * (1 - self.update_c1_lr) + self.population['weights'] * (-1 * rec_cmp + 1) * self.update_c1_lr) # update the pbest fitness with momentum strategy
 
         # create gbest tensors
         gbest = tf.identity(self.population['weights'][tf.argmin(fitness_rec)])
@@ -151,7 +157,7 @@ class PSO():
         # xid+1 = xid+vid
         if np.random.random() > 0.0:
         #if False:
-            self.population['velocity'] = tf.clip_by_value(self.population['velocity'], -self.paricle_v_limit,  self.paricle_v_limit)
+            self.population['velocity'] = tf.clip_by_value(self.population['velocity'], -self.partical_v_limit,  self.partical_v_limit)
             self.population['velocity'] = tf.identity(
                                           self.update_w * tf.identity(self.population['velocity']) +\
                                           #self.update_c1 * tf.math.abs(tf.random.normal(self.population['velocity'].shape, stddev=.5, dtype=tf.float32)) * tf.identity(self.pbest['weights'] - self.population['weights']) +\
