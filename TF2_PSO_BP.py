@@ -9,7 +9,7 @@ class PSO():
                  update_w = .99,
                  update_interia = .9,
                  partical_v_limit = .1,
-                 update_c1 = 0.,
+                 update_c1 = 1.,
                  update_c1_lr = 1E-3,
                  update_c2 = 1.,
                  population_size = 20):
@@ -26,7 +26,7 @@ class PSO():
         self.pbest = {'fitness':tf.zeros([population_size]), 
                       'weights':tf.zeros(self.population['weights'].shape)}
         self.force_evaluate = True
-        #self.SGDOpts = self._createOptimizers(tfa.optimizers.SGDW, learning_rate=1E-4, clipnorm=1.)
+        #self.SGDOpts = self._createOptimizers(tfa.optimizers.SGDW, learning_rate=1E-3, clipnorm=None)
         #self.SGDOpts = self._createOptimizers(tfa.optimizers.Yogi, learning_rate=1E-4, clipnorm=1.)
         self.SGDOpts = self._createOptimizers(tf.keras.optimizers.RMSprop, learning_rate=1E-4, clipnorm=1.)
         #self.SGDOpts = self._createOptimizers(tfa.optimizers.RectifiedAdam, learning_rate=1E-4)
@@ -97,7 +97,7 @@ class PSO():
                         subject_pred = tf.nn.softmax(self.nnmodel(batch_dataset) / temperature)
                         
                         loss = tf.math.reduce_mean(
-                               tf.map_fn(fn=lambda model_idx: KLD(subject_pred, tf.nn.softmax(query_models[model_idx](batch_dataset) / temperature)), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
+                               tf.map_fn(fn=lambda model_idx: KLD(subject_pred, tf.stop_gradient(tf.nn.softmax(query_models[model_idx](batch_dataset) / temperature))), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
                                #tf.map_fn(fn=lambda model_idx: tf.pow(self.nnmodel(batch_dataset) - query_models[model_idx](batch_dataset), 2), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
                                )
                         
@@ -125,7 +125,8 @@ class PSO():
 
     def minimize(self, fitness_function, model_loss, batch_data = None):
         # get fitnesses of each individual
-        fitness_rec = self.updateFitness(self.population, fitness_function, model_loss, SGD=True, batch_dataset=batch_data)
+        #fitness_rec = self.updateFitness(self.population, fitness_function, model_loss, SGD=True, batch_dataset=batch_data)
+        fitness_rec = self.updateFitness(self.population, fitness_function, model_loss, SGD=True)
         # print(fitness_rec)
         
 
