@@ -115,7 +115,7 @@ class PSO():
                 pass
                 SGD_Optimized_weights.append(tf.identity(self._flattenWeightsTFKeras()))
             pass
-            fitness_rec.append(fitness_function()) # + tf.norm(SGD_Optimized_weights[-1]) * 1E-3)
+            fitness_rec.append(fitness_function() + tf.norm(SGD_Optimized_weights[-1]) * 1E-4)
         pass
         if SGD:
             population['weights'] = tf.stack(SGD_Optimized_weights, axis=0)
