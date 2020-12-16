@@ -57,6 +57,7 @@ class PSO():
 
     def _createOptimizers(self, keras_opt, learning_rate, **kwargs):
         opts = [keras_opt(learning_rate, **kwargs) for i in range(self.population_size)]
+        #opts = [tfa.optimizers.MovingAverage(keras_opt(learning_rate, **kwargs)) for i in range(self.population_size)]
         return opts
     pass
 
@@ -97,15 +98,21 @@ class PSO():
                         subject_pred = tf.nn.softmax(self.nnmodel(batch_dataset) / temperature)
                         
                         loss = tf.math.reduce_mean(
-                               tf.map_fn(fn=lambda model_idx: KLD(subject_pred, tf.stop_gradient(tf.nn.softmax(query_models[model_idx](batch_dataset) / temperature))), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
-                               #tf.map_fn(fn=lambda model_idx: tf.pow(self.nnmodel(batch_dataset) - query_models[model_idx](batch_dataset), 2), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
+                               tf.map_fn(fn=lambda model_idx: KLD(subject_pred, tf.stop_gradient(tf.nn.softmax(query_models[model_idx](batch_dataset) / temperature))), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32) 
+                               ) +\
+                               tf.math.reduce_mean(
+                               tf.map_fn(fn=lambda model_idx: KLD(tf.stop_gradient(tf.nn.softmax(query_models[model_idx](batch_dataset) / temperature)), subject_pred), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
+                               
                                )
-                        
-                        #loss = 0
-                        #for query_ind in range(self.population_size):
-                        #    query_pred = tf.nn.softmax(query_models[query_ind](batch_dataset))
-                        #    loss += tf.keras.losses.KLDivergence()(subject_pred, query_pred) + tf.keras.losses.KLDivergence()(query_pred, subject_pred) 
-                        #pass
+                     
+                        # contrastive view 2
+                        augmented_batch_data = tf.keras.layers.experimental.preprocessing.RandomFlip("horizontal_and_vertical")(batch_dataset)
+                        augmented_batch_data = tf.keras.layers.experimental.preprocessing.RandomRotation(0.2)(augmented_batch_data)
+                        augmented_batch_data = tf.keras.layers.experimental.preprocessing.RandomZoom(.5, .5)(augmented_batch_data)
+
+                        augmented_subject_pred = tf.nn.softmax(self.nnmodel(augmented_batch_data) / temperature)
+                        loss += tf.math.reduce_mean(KLD(subject_pred, tf.stop_gradient(augmented_subject_pred))) +  tf.math.reduce_mean(KLD(tf.stop_gradient(augmented_subject_pred), subject_pred))
+
                         return model_loss() + loss 
                     pass
                     SGDOpts[ind_index].minimize(model_and_contrastive_loss, self.nnmodel.trainable_weights)
@@ -115,7 +122,7 @@ class PSO():
                 pass
                 SGD_Optimized_weights.append(tf.identity(self._flattenWeightsTFKeras()))
             pass
-            fitness_rec.append(fitness_function() + tf.norm(SGD_Optimized_weights[-1]) * 1E-4)
+            fitness_rec.append(fitness_function()) # + tf.norm(SGD_Optimized_weights[-1]) * 1E-4)
         pass
         if SGD:
             population['weights'] = tf.stack(SGD_Optimized_weights, axis=0)
