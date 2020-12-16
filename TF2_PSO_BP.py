@@ -106,12 +106,12 @@ class PSO():
                                )
                      
                         # contrastive view 2
-                        augmented_batch_data = tf.keras.layers.experimental.preprocessing.RandomFlip("horizontal_and_vertical")(batch_dataset)
-                        augmented_batch_data = tf.keras.layers.experimental.preprocessing.RandomRotation(0.2)(augmented_batch_data)
-                        augmented_batch_data = tf.keras.layers.experimental.preprocessing.RandomZoom(.5, .5)(augmented_batch_data)
+                        #augmented_batch_data = tf.keras.layers.experimental.preprocessing.RandomFlip("horizontal_and_vertical")(batch_dataset)
+                        #augmented_batch_data = tf.keras.layers.experimental.preprocessing.RandomRotation(0.2)(augmented_batch_data)
+                        #augmented_batch_data = tf.keras.layers.experimental.preprocessing.RandomZoom(.5, .5)(augmented_batch_data)
 
-                        augmented_subject_pred = tf.nn.softmax(self.nnmodel(augmented_batch_data) / temperature)
-                        loss += tf.math.reduce_mean(KLD(subject_pred, tf.stop_gradient(augmented_subject_pred))) +  tf.math.reduce_mean(KLD(tf.stop_gradient(augmented_subject_pred), subject_pred))
+                        #augmented_subject_pred = tf.nn.softmax(self.nnmodel(augmented_batch_data) / temperature)
+                        #loss += tf.math.reduce_mean(KLD(subject_pred, tf.stop_gradient(augmented_subject_pred))) +  tf.math.reduce_mean(KLD(tf.stop_gradient(augmented_subject_pred), subject_pred))
 
                         return model_loss() + loss 
                     pass
