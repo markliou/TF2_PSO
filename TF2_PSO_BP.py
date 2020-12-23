@@ -94,9 +94,11 @@ class PSO():
                 if batch_dataset != None: # if provide the dataset, using the self-supervised and crossentropy optimization
                     subject_pred = tf.nn.softmax(self.nnmodel(batch_dataset))
                     def model_and_contrastive_loss():
-                        temperature = 5.
-                        subject_pred = tf.nn.softmax(self.nnmodel(batch_dataset) / temperature)
+                        temperature = .1
+                        subject_pred_logit = self.nnmodel(batch_dataset)
+                        subject_pred = tf.nn.softmax(subject_pred_logit / temperature)
                         
+                        # JS divergence
                         loss = tf.math.reduce_mean(
                                tf.map_fn(fn=lambda model_idx: KLD(subject_pred, tf.stop_gradient(tf.nn.softmax(query_models[model_idx](batch_dataset) / temperature))), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32) 
                                ) +\
@@ -104,7 +106,7 @@ class PSO():
                                tf.map_fn(fn=lambda model_idx: KLD(tf.stop_gradient(tf.nn.softmax(query_models[model_idx](batch_dataset) / temperature)), subject_pred), elems=tf.range(self.population_size), parallel_iterations=50, fn_output_signature=tf.float32)
                                
                                )
-                     
+                               
                         # contrastive view 2
                         #augmented_batch_data = tf.keras.layers.experimental.preprocessing.RandomFlip("horizontal_and_vertical")(batch_dataset)
                         #augmented_batch_data = tf.keras.layers.experimental.preprocessing.RandomRotation(0.2)(augmented_batch_data)
